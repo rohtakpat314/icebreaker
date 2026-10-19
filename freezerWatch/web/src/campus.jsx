@@ -1,272 +1,224 @@
-import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/drei"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { useMemo, useRef, useState } from "react"
+import { Html, Line, OrbitControls } from "@react-three/drei"
+import { Canvas, useThree } from "@react-three/fiber"
+import { useLayoutEffect, useMemo, useState } from "react"
 import * as THREE from "three"
+import { SHORT } from "./map"
 
-const LEVEL = {
-  red: "#ff6b57",
-  yellow: "#e2b340",
+const COLOR = {
+  red: "#e11d48",
+  yellow: "#eab308",
   green: "#3ecf8e",
 }
 
-const SHORT = {
-  chemistry: "Chemistry",
-  vilas: "Vilas",
-  grainger: "Grainger",
-  birge: "Birge",
-  van_vleck: "Van Vleck",
-  biochemistry: "Biochem",
-  microbial: "Microbial",
-  discovery: "Discovery",
-  engineering_centers: "Engr Centers",
-  hslc: "HSLC",
-  msc: "Med Sci",
-  bock: "Bock",
+const ORIGIN = { lat: 43.0752, lon: -89.412 }
+const M_LAT = 111320
+const M_LON = 111320 * Math.cos((ORIGIN.lat * Math.PI) / 180)
+const SCALE = 1 / 280
+const LAT_EX = 2.35
+const SHORE_LAT = 43.079
+
+function project(lat, lon) {
+  const x = (lon - ORIGIN.lon) * M_LON * SCALE
+  const z = -(lat - ORIGIN.lat) * M_LAT * SCALE * LAT_EX
+  return [x, z]
 }
 
-function prefersStill() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+const SHORE_Z = project(SHORE_LAT, ORIGIN.lon)[1]
+const LAND = { x0: -12, x1: 8, z1: 7 }
+
+const NUDGE = {
+  chemistry: [-0.42, 0.05],
+  grainger: [0.08, 0.34],
+  vilas: [0.46, 0.02],
+  discovery: [-0.08, -0.32],
+  van_vleck: [0.36, -0.08],
+  msc: [-0.28, 0.22],
+  bock: [-0.34, 0.02],
+  microbial: [0.28, -0.16],
+  engineering_centers: [0.05, 0.28],
+  biochemistry: [0.3, 0.12],
 }
 
 function layout(buildings) {
-  if (!buildings.length) return []
-  const lats = buildings.map((row) => row.latitude)
-  const lons = buildings.map((row) => row.longitude)
-  const minLat = Math.min(...lats)
-  const maxLat = Math.max(...lats)
-  const minLon = Math.min(...lons)
-  const maxLon = Math.max(...lons)
-  const latSpan = Math.max(maxLat - minLat, 1e-6)
-  const lonSpan = Math.max(maxLon - minLon, 1e-6)
-  const placed = buildings.map((row) => {
+  if (!buildings.length) return { points: [], link: null, center: [0, 0] }
+  const points = buildings.map((row) => {
+    const [x, z] = project(row.latitude, row.longitude)
     const score = Number(row.score) || 0
-    const h = 0.9 + (score / 100) * 4.6
-    const footprint = 0.92 + (score / 100) * 0.28
-    const turn = ((row.id.charCodeAt(0) + row.id.length) % 7 - 3) * 0.04
     return {
       ...row,
-      x: ((row.longitude - minLon) / lonSpan - 0.5) * 8,
-      z: ((maxLat - row.latitude) / latSpan - 0.5) * 5,
-      h,
-      w: footprint,
-      d: footprint * 0.84,
-      turn,
-      color: LEVEL[row.level] || LEVEL.green,
+      x,
+      z,
+      h: 0.16 + (score / 100) * 2.35,
       short: SHORT[row.id] || row.name,
     }
   })
-  for (let pass = 0; pass < 48; pass += 1) {
-    for (let i = 0; i < placed.length; i += 1) {
-      for (let j = i + 1; j < placed.length; j += 1) {
-        const dx = placed[j].x - placed[i].x
-        const dz = placed[j].z - placed[i].z
-        const dist = Math.hypot(dx, dz) || 0.001
-        if (dist < 1.85) {
-          const push = (1.85 - dist) / 2
-          placed[i].x -= (dx / dist) * push
-          placed[i].z -= (dz / dist) * push
-          placed[j].x += (dx / dist) * push
-          placed[j].z += (dz / dist) * push
-        }
-      }
-    }
-  }
-  const cx = placed.reduce((sum, row) => sum + row.x, 0) / placed.length
-  const cz = placed.reduce((sum, row) => sum + row.z, 0) / placed.length
-  placed.forEach((row) => {
-    row.x -= cx
-    row.z -= cz
-  })
-  const maxR = Math.max(...placed.map((row) => Math.hypot(row.x, row.z)), 1)
-  const fit = 4.6 / maxR
-  placed.forEach((row) => {
-    row.x *= fit
-    row.z *= fit
-  })
-  return placed
+  const hslc = points.find((row) => row.id === "hslc")
+  const west = points.filter((row) => row.id !== "hslc").reduce((best, row) => (row.x < best.x ? row : best), points[0])
+  const link = hslc && west ? [[hslc.x, 0.04, hslc.z], [west.x, 0.04, west.z]] : null
+  const xs = points.map((row) => row.x)
+  const zs = points.map((row) => row.z)
+  const center = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...zs) + Math.max(...zs)) / 2]
+  return { points, link, center }
 }
 
-function Snow({ still }) {
-  const points = useMemo(() => {
-    const geo = new THREE.BufferGeometry()
-    const count = 520
-    const array = new Float32Array(count * 3)
-    for (let index = 0; index < count; index += 1) {
-      array[index * 3] = (Math.random() - 0.5) * 28
-      array[index * 3 + 1] = Math.random() * 16
-      array[index * 3 + 2] = (Math.random() - 0.5) * 24
-    }
-    geo.setAttribute("position", new THREE.BufferAttribute(array, 3))
-    const material = new THREE.PointsMaterial({
-      color: "#f6f3ec",
-      size: 0.045,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
-      sizeAttenuation: true,
-    })
-    return new THREE.Points(geo, material)
-  }, [])
-
-  useFrame((_, delta) => {
-    if (still) return
-    const position = points.geometry.attributes.position
-    for (let index = 0; index < position.count; index += 1) {
-      let y = position.getY(index) - delta * (0.45 + (index % 5) * 0.12)
-      if (y < 0) y = 15
-      position.setY(index, y)
-      position.setX(index, position.getX(index) + Math.sin(index + y) * delta * 0.05)
-    }
-    position.needsUpdate = true
-  })
-
-  return <primitive object={points} />
-}
-
-function Grid() {
+function Ground() {
   const grid = useMemo(() => {
-    const helper = new THREE.GridHelper(24, 24, "#3c4558", "#222836")
-    helper.material.transparent = true
-    helper.material.opacity = 0.14
-    return helper
+    const verts = []
+    for (let lon = -89.434; lon <= -89.396; lon += 0.004) {
+      const [x] = project(ORIGIN.lat, lon)
+      verts.push(x, 0.02, SHORE_Z, x, 0.02, LAND.z1)
+    }
+    for (let lat = 43.0712; lat < SHORE_LAT; lat += 0.0014) {
+      const [, z] = project(lat, ORIGIN.lon)
+      verts.push(LAND.x0, 0.02, z, LAND.x1, 0.02, z)
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3))
+    return geometry
   }, [])
-  return <primitive object={grid} position={[0, 0.01, 0]} />
-}
+  const landW = LAND.x1 - LAND.x0
+  const landH = LAND.z1 - SHORE_Z
+  const waterH = 8
 
-function Lights() {
   return (
-    <>
-      <ambientLight intensity={0.38} />
-      <hemisphereLight args={["#d5e2f5", "#1a140f", 0.55]} />
-      <directionalLight position={[8, 16, 8]} intensity={1.25} color="#f7f1e4" />
-      <directionalLight position={[-12, 6, -6]} intensity={0.4} color="#8eafef" />
-    </>
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[(LAND.x0 + LAND.x1) / 2, 0, (SHORE_Z + LAND.z1) / 2]}>
+        <planeGeometry args={[landW, landH]} />
+        <meshStandardMaterial color="#121412" roughness={1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[(LAND.x0 + LAND.x1) / 2, -0.03, SHORE_Z - waterH / 2]}>
+        <planeGeometry args={[landW, waterH]} />
+        <meshStandardMaterial color="#0c1218" metalness={0.35} roughness={0.42} />
+      </mesh>
+      <Line
+        points={[[LAND.x0, 0.03, SHORE_Z], [LAND.x1, 0.03, SHORE_Z]]}
+        color="#6d7c8a"
+        lineWidth={1}
+      />
+      <lineSegments geometry={grid}>
+        <lineBasicMaterial color="#2c2e2a" />
+      </lineSegments>
+      <Line
+        points={[[-4.6, 0.04, 1.35], [-4.6 + 500 * SCALE, 0.04, 1.35]]}
+        color="#8a8a86"
+        lineWidth={1}
+      />
+      <Html position={[-1.6, 0.05, SHORE_Z - 0.55]} center style={{ pointerEvents: "none" }} zIndexRange={[2, 0]}>
+        <span className="pin-meta">Lake Mendota</span>
+      </Html>
+      <Html position={[3.15, 0.05, SHORE_Z - 0.55]} center style={{ pointerEvents: "none" }} zIndexRange={[2, 0]}>
+        <span className="pin-meta">N</span>
+      </Html>
+    </group>
   )
 }
 
-function Tower({ row, selected, onSelect }) {
-  const [hot, setHot] = useState(false)
-  const mesh = useRef(null)
-  const glow = selected || hot
-
-  useFrame(() => {
-    if (!mesh.current) return
-    const next = glow ? 1.04 : 1
-    mesh.current.scale.y += (next - mesh.current.scale.y) * 0.12
-  })
-
+function Hall({ row, selected, hot, onSelect, onHot }) {
+  const color = COLOR[row.level] || COLOR.green
+  const lit = selected || hot
+  const height = Math.max(row.h, 0.18)
   return (
-    <group position={[row.x, 0, row.z]} rotation={[0, row.turn, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-        <circleGeometry args={[glow ? 0.95 : 0.62, 24]} />
-        <meshBasicMaterial color={row.color} transparent opacity={glow ? 0.34 : 0.12} />
-      </mesh>
-      <RoundedBox
-        ref={mesh}
-        args={[row.w, row.h, row.d]}
-        radius={0.08}
-        smoothness={4}
-        position={[0, row.h / 2, 0]}
+    <group position={[row.x, 0, row.z]}>
+      <mesh
+        position={[0, height / 2, 0]}
         onClick={(event) => {
           event.stopPropagation()
           onSelect(row.id)
         }}
         onPointerOver={(event) => {
           event.stopPropagation()
-          setHot(true)
-          document.body.style.cursor = "pointer"
+          onHot(row.id)
         }}
-        onPointerOut={() => {
-          setHot(false)
-          document.body.style.cursor = ""
-        }}
+        onPointerOut={() => onHot(null)}
       >
-        <meshStandardMaterial
-          color="#1b2433"
-          emissive={row.color}
-          emissiveIntensity={selected ? 0.72 : hot ? 0.4 : 0.16}
-          roughness={0.55}
-          metalness={0.22}
-        />
-      </RoundedBox>
-      <mesh position={[0, row.h + 0.02, 0]}>
-        <boxGeometry args={[row.w * 0.86, 0.1, row.d * 0.86]} />
-        <meshStandardMaterial color={row.color} emissive={row.color} emissiveIntensity={selected ? 1.3 : 0.75} roughness={0.3} />
+        <boxGeometry args={[0.26, height, 0.26]} />
+        <meshStandardMaterial color={color} roughness={0.72} metalness={0.04} emissive={color} emissiveIntensity={lit ? 0.22 : 0.04} />
       </mesh>
-      {(selected || hot) && (
-        <Html position={[0, row.h + 0.45, 0]} center zIndexRange={[8, 0]} style={{ pointerEvents: "none" }}>
-          <div className={`pin level-${row.level}${selected ? " on" : ""}`}>
-            {row.short}
-            <small>{row.levelText} {row.score}</small>
-          </div>
-        </Html>
-      )}
-      {selected && <pointLight position={[0, row.h + 0.4, 0]} color={row.color} intensity={6} distance={7} />}
+      {selected ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+          <ringGeometry args={[0.2, 0.28, 40]} />
+          <meshBasicMaterial color="#f5f5f4" />
+        </mesh>
+      ) : null}
+      <Html position={[NUDGE[row.id]?.[0] || 0, height + 0.34, NUDGE[row.id]?.[1] || 0]} center distanceFactor={12} style={{ pointerEvents: "none" }} zIndexRange={[8, 0]}>
+        <span className={lit ? "pin-label on" : "pin-label"}>{row.short}</span>
+      </Html>
     </group>
   )
 }
 
-function Lobby() {
-  const towers = [
-    { position: [-3.2, 1.1, -1.2], args: [1.1, 2.2, 0.9], color: "#ff6b57" },
-    { position: [-1.2, 0.7, 0.8], args: [0.9, 1.4, 0.8], color: "#e2b340" },
-    { position: [0.8, 1.5, -0.4], args: [1.2, 3, 1], color: "#3ecf8e" },
-    { position: [2.8, 0.9, 1.1], args: [0.85, 1.8, 0.75], color: "#e4c27a" },
-  ]
-  return towers.map((tower) => (
-    <RoundedBox key={tower.color} args={tower.args} radius={0.08} position={tower.position}>
-      <meshStandardMaterial color="#141b28" emissive={tower.color} emissiveIntensity={0.55} roughness={0.4} metalness={0.2} />
-    </RoundedBox>
-  ))
-}
-
-export function canUseWebGL() {
-  try {
-    const canvas = document.createElement("canvas")
-    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"))
-  } catch {
-    return false
-  }
-}
-
-export default function Campus({ buildings = [], selectedId, onSelect, lobby = false }) {
-  const still = useMemo(prefersStill, [])
-  const placed = useMemo(() => layout(buildings), [buildings])
+function Scene({ buildings, selectedId, onSelect }) {
+  const [hot, setHot] = useState(null)
+  const { points, link, center } = useMemo(() => layout(buildings), [buildings])
+  const mid = link ? [(link[0][0] + link[1][0]) / 2, 0.08, (link[0][2] + link[1][2]) / 2] : null
 
   return (
-    <Canvas
-      camera={{ position: lobby ? [6, 5, 8] : [0, 11, 15], fov: lobby ? 42 : 34 }}
-      dpr={[1, 1.75]}
-      gl={{ antialias: true }}
-    >
-      <color attach="background" args={["#07080d"]} />
-      <fog attach="fog" args={["#07080d", 18, 42]} />
-      <Lights />
-      <Grid />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <circleGeometry args={[13.5, 72]} />
-        <meshStandardMaterial color="#10151f" roughness={1} metalness={0} />
-      </mesh>
-      <ContactShadows position={[0, 0.02, 0]} opacity={0.45} scale={28} blur={2.4} far={5} color="#000000" />
-      <Snow still={still} />
-      {lobby
-        ? <Lobby />
-        : placed.map((row) => (
-          <Tower key={row.id} row={row} selected={row.id === selectedId} onSelect={onSelect} />
-        ))}
+    <>
+      <color attach="background" args={["#090909"]} />
+      <ambientLight intensity={0.42} />
+      <directionalLight position={[-8, 12, 6]} intensity={1.7} />
+      <hemisphereLight args={["#d5d8d2", "#0c1014", 0.35]} />
+      <Ground />
+      {link ? <Line points={link} color="#5c5e58" lineWidth={1} dashed dashSize={0.12} gapSize={0.08} /> : null}
+      {mid ? (
+        <Html position={mid} center style={{ pointerEvents: "none" }} zIndexRange={[4, 0]}>
+          <span className="pin-meta distance">1.5 km</span>
+        </Html>
+      ) : null}
+      <Html position={[-4.6 + 250 * SCALE, 0.08, 1.62]} center style={{ pointerEvents: "none" }} zIndexRange={[4, 0]}>
+        <span className="pin-meta distance">500 m</span>
+      </Html>
+      {points.map((row) => (
+        <Hall
+          key={row.id}
+          row={row}
+          selected={row.id === selectedId}
+          hot={row.id === hot}
+          onSelect={onSelect}
+          onHot={setHot}
+        />
+      ))}
+      <Frame center={center} />
       <OrbitControls
         makeDefault
+        enablePan={false}
         enableDamping
         dampingFactor={0.08}
-        enablePan={!lobby}
-        autoRotate={lobby && !still}
-        autoRotateSpeed={0.45}
-        maxPolarAngle={Math.PI / 2.15}
         minPolarAngle={0.45}
-        minDistance={lobby ? 8 : 8}
-        maxDistance={lobby ? 16 : 26}
-        target={[0, 1.4, 0]}
+        maxPolarAngle={1.15}
+        minDistance={6}
+        maxDistance={28}
+        target={[center[0], 0.15, center[1]]}
       />
+    </>
+  )
+}
+
+function Frame({ center }) {
+  const { camera, size, controls } = useThree()
+  useLayoutEffect(() => {
+    const aspect = size.width / Math.max(size.height, 1)
+    const dist = aspect < 0.9 ? 19 : 13.4
+    camera.position.set(center[0], dist * 0.7, center[1] + dist * 0.78)
+    camera.fov = aspect < 0.9 ? 50 : 36
+    camera.updateProjectionMatrix()
+    if (controls) {
+      controls.target.set(center[0], 0.15, center[1])
+      controls.update()
+    }
+  }, [camera, center, controls, size])
+  return null
+}
+
+export default function Campus({ buildings, selectedId, onSelect }) {
+  return (
+    <Canvas
+      className="campus"
+      camera={{ position: [-1, 14, 12], fov: 40, near: 0.1, far: 80 }}
+      dpr={[1, 1.75]}
+      gl={{ antialias: true, toneMapping: 0 }}
+    >
+      <Scene buildings={buildings} selectedId={selectedId} onSelect={onSelect} />
     </Canvas>
   )
 }

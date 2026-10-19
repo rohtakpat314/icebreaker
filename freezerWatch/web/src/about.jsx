@@ -14,10 +14,10 @@ export default function About({ onClose }) {
       <button type="button" className="about-scrim" aria-label="Close about" onClick={onClose} />
       <aside className="about" role="dialog" aria-labelledby="about-title">
         <header>
-          <p className="eyebrow">About</p>
+          <p className="kicker">About</p>
           <button type="button" className="text" onClick={onClose}>Close</button>
         </header>
-        <h2 id="about-title">Freezer Watch</h2>
+        <h2 id="about-title">IceBreaker</h2>
         <p className="about-lead">A replay of the February 2019 freeze at UW–Madison. One campus. One hour at a time.</p>
 
         <h3>What it is</h3>

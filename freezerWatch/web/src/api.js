@@ -14,11 +14,19 @@ export function me() {
   return api("/api/me")
 }
 
-export function login(username, password) {
+export function login(email, password) {
   return api("/api/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username: email, password }),
+  })
+}
+
+export function register(email, password) {
+  return api("/api/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   })
 }
 

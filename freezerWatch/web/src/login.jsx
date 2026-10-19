@@ -1,27 +1,23 @@
 import { useState } from "react"
 import About from "./about"
-import Campus, { canUseWebGL } from "./campus"
 
-const DEMOS = [
-  ["officer", "capitol-2019", "Facilities Officer", "Approves plans. Sees every freezer."],
-  ["labmgr-chemistry", "babcock-2019", "Chemistry Lab Manager", "Freezers in Chemistry only."],
-  ["viewer", "lakeshore", "Viewer", "Risk levels and dollar ranges."],
-]
-
-export default function Login({ onSuccess, signIn }) {
-  const [username, setUsername] = useState("")
+export default function Login({ onSuccess, signIn, register, onMethod }) {
+  const [mode, setMode] = useState("sign-in")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
   const [about, setAbout] = useState(false)
-  const webgl = canUseWebGL()
+  const creating = mode === "create"
 
-  async function submit(event, nextUser = username, nextPassword = password) {
-    event?.preventDefault()
+  async function submit(event) {
+    event.preventDefault()
     setPending(true)
     setError("")
     try {
-      const payload = await signIn(nextUser.trim(), nextPassword)
+      const payload = creating
+        ? await register(email.trim(), password)
+        : await signIn(email.trim(), password)
       onSuccess(payload)
     } catch (err) {
       setError(err.message || "Sign-in failed")
@@ -30,28 +26,25 @@ export default function Login({ onSuccess, signIn }) {
     }
   }
 
+  function switchMode() {
+    setMode(creating ? "sign-in" : "create")
+    setError("")
+  }
+
   return (
-    <div className="login">
-      <div className="stage" aria-hidden="true">
-        {webgl ? <Campus lobby /> : null}
-        <div className="vignette" />
-      </div>
-      <form className="login-card" onSubmit={(event) => submit(event)}>
-        <div className="login-top">
-          <p className="eyebrow">UW–Madison · February 2019</p>
-          <button type="button" className="text" onClick={() => setAbout(true)}>About</button>
-        </div>
-        <img src="/capitol.jpg" alt="The Wisconsin State Capitol at night in heavy snow" />
-        <h1>Freezer Watch</h1>
-        <p className="lede">Sign in to walk the campus through the freeze, hour by hour.</p>
+    <div className="gate">
+      <form className="gate-copy" onSubmit={submit}>
+        <p className="kicker">UW–Madison · February 2019</p>
+        <h1>IceBreaker</h1>
+        <p className="lede">{creating ? "Create an account." : "The freeze, hour by hour."}</p>
         <label>
-          User
+          Email
           <input
-            name="username"
-            autoComplete="username"
-            placeholder="officer"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
           />
         </label>
@@ -60,35 +53,25 @@ export default function Login({ onSuccess, signIn }) {
           <input
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={creating ? "new-password" : "current-password"}
+            minLength={creating ? 8 : undefined}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
           />
         </label>
+        {creating ? <p className="quiet">New accounts are viewers.</p> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <button className="primary" type="submit" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
-        </button>
-        <div className="demos">
-          <p>Demo accounts</p>
-          {DEMOS.map(([id, pass, name, note]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                setUsername(id)
-                setPassword(pass)
-                submit(null, id, pass)
-              }}
-            >
-              <strong>{name}</strong>
-              <span>{id} · {pass}</span>
-              <small>{note}</small>
-            </button>
-          ))}
+        <div className="gate-actions">
+          <button className="solid" type="submit" disabled={pending}>
+            {pending ? "Please wait" : creating ? "Create account" : "Sign in"}
+          </button>
+          <button type="button" onClick={switchMode}>{creating ? "Sign in" : "Create an account"}</button>
+          <button type="button" onClick={onMethod}>Method</button>
+          <button type="button" onClick={() => setAbout(true)}>About</button>
         </div>
       </form>
+      <img src="/capitol.jpg" alt="The Wisconsin State Capitol at night in heavy snow" />
       {about ? <About onClose={() => setAbout(false)} /> : null}
     </div>
   )

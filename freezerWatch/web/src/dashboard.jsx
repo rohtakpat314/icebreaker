@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react"
 import About from "./about"
 import { api } from "./api"
-import Campus, { canUseWebGL } from "./campus"
 import Chart from "./chart"
+import Campus from "./campus"
+import { SHORT } from "./map"
 import { END, SPAN, START, fromIndex, hourIndex, hourLabel, shift } from "./time"
 
 const JUMPS = [
-  ["deepFreeze", "Jan 30 deep freeze"],
-  ["outage", "Feb 1 Chemistry outage"],
-  ["thaw", "Feb 3 thaw"],
+  ["deepFreeze", "Jan 30"],
+  ["outage", "Feb 1"],
+  ["thaw", "Feb 3"],
 ]
 
-export default function Dashboard({ user, onSignedOut }) {
+export default function Dashboard({ user, onSignedOut, onMethod }) {
   const [at, setAt] = useState(START)
   const [building, setBuilding] = useState(null)
   const [data, setData] = useState(null)
@@ -20,7 +21,6 @@ export default function Dashboard({ user, onSignedOut }) {
   const [series, setSeries] = useState(null)
   const [notice, setNotice] = useState("")
   const [about, setAbout] = useState(false)
-  const webgl = canUseWebGL()
 
   useEffect(() => {
     const params = new URLSearchParams({ at })
@@ -105,154 +105,140 @@ export default function Dashboard({ user, onSignedOut }) {
   const detail = data?.detail
   const weather = data?.weather
   const air = []
-  if (weather && weather.tempF !== null && weather.tempF !== undefined) air.push(`${weather.tempF.toFixed(1)}°F outside`)
-  if (weather?.precipIn) air.push(`${weather.precipIn.toFixed(2)} in precip`)
+  if (weather && weather.tempF !== null && weather.tempF !== undefined) air.push(`${weather.tempF.toFixed(1)}°`)
+  if (weather?.precipIn) air.push(`${weather.precipIn.toFixed(2)} in`)
 
   return (
-    <div className="app">
-      <div className="stage">
-        {webgl ? (
-          <Campus buildings={data?.buildings || []} selectedId={data?.selectedId} onSelect={chooseBuilding} />
-        ) : (
-          <div className="stage-fallback">This browser cannot draw the 3D campus. The building list still works.</div>
-        )}
-        <div className="vignette" />
-      </div>
-
-      <header className="topbar">
-        <div className="brand">
-          <p className="eyebrow">UW–Madison · February 2019</p>
-          <strong>Freezer Watch</strong>
-        </div>
-        <div className="now">
-          <p>{data ? hourLabel(data.at) : hourLabel(at)}</p>
-          <span>{air.join(" · ")}</span>
-        </div>
-        <div className="who">
+    <div className="shell">
+      <header className="bar">
+        <p className="mark">IceBreaker</p>
+        <p className="now">
+          {data ? hourLabel(data.at) : hourLabel(at)}
+          {air.length ? <span>{air.join(" · ")}</span> : null}
+        </p>
+        <nav className="who">
           <span>{user.name}</span>
-          <em>{user.roleLabel || user.role}</em>
-          <button type="button" className="text" onClick={() => setAbout(true)}>About</button>
-          <button type="button" className="text" onClick={onSignedOut}>Log out</button>
-        </div>
+          <button type="button" onClick={onMethod}>Method</button>
+          <button type="button" onClick={() => setAbout(true)}>About</button>
+          <button type="button" onClick={onSignedOut}>Log out</button>
+        </nav>
       </header>
       {about ? <About onClose={() => setAbout(false)} /> : null}
 
-      <div className="workspace">
-        <aside className="panel">
+      <div className="columns">
+        <aside className="rail">
           <section className="stats">
-            <Stat label="Red buildings" value={data ? String(data.summary.red) : "–"} />
-            <Stat label="Dollars at risk" value={data ? data.summary.dollars : "–"} tag="Simulated" />
-            <Stat label="Pending plans" value={data ? String(data.summary.pending) : "–"} />
+            <Stat label="Red" value={data ? String(data.summary.red) : "–"} />
+            <Stat label="Pending" value={data ? String(data.summary.pending) : "–"} />
+            <Stat label="At risk" value={data ? data.summary.dollars : "–"} wide />
           </section>
 
-          <div className="transport">
-            <button type="button" onClick={() => go(shift(at, -1))} disabled={at === START}>Back</button>
-            <button type="button" className="primary" onClick={() => setPlaying((value) => !value)}>
-              {playing ? "Pause" : "Play"}
-            </button>
-            <button type="button" onClick={() => go(shift(at, 1))} disabled={at === END}>Forward</button>
-          </div>
-          <label className="scrub">
-            Hour
+          <div className="time">
+            <div className="transport">
+              <button type="button" onClick={() => go(shift(at, -1))} disabled={at === START}>Back</button>
+              <button type="button" className="ink" onClick={() => setPlaying((value) => !value)}>
+                {playing ? "Pause" : "Play"}
+              </button>
+              <button type="button" onClick={() => go(shift(at, 1))} disabled={at === END}>Forward</button>
+            </div>
             <input
+              aria-label="Hour"
               type="range"
               min={0}
               max={SPAN}
               value={hourIndex(at)}
               onChange={(event) => go(fromIndex(Number(event.target.value)))}
             />
-          </label>
-          <div className="jumps">
-            {JUMPS.map(([key, label]) => (
-              <button key={key} type="button" onClick={() => go(data?.jumps?.[key] || at, true)} disabled={!data}>
-                {label}
-              </button>
-            ))}
+            <div className="jumps">
+              {JUMPS.map(([key, label]) => (
+                <button key={key} type="button" onClick={() => go(data?.jumps?.[key] || at, true)} disabled={!data}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <h2>Campus</h2>
-          <div className="legend">
-            <span><i className="swatch red" /> Red</span>
-            <span><i className="swatch yellow" /> Yellow</span>
-            <span><i className="swatch green" /> Green</span>
-          </div>
-          <ul className="buildings">
+          <ul className="index">
             {(data?.buildings || []).map((row) => (
               <li key={row.id}>
                 <button
                   type="button"
-                  className={row.id === data?.selectedId ? "bldg on" : "bldg"}
+                  className={row.id === data?.selectedId ? "row on" : "row"}
                   onClick={() => chooseBuilding(row.id)}
                 >
-                  <i className={`swatch ${row.level}`} />
-                  <span>{row.name}</span>
-                  <strong>{row.score}</strong>
+                  <i className={row.level} />
+                  <span title={row.name}>{SHORT[row.id] || row.name}</span>
+                  <strong className={row.level}>{row.score}</strong>
                 </button>
               </li>
             ))}
           </ul>
         </aside>
 
-        <div className="spacer">
-          <p className="orbit-hint">Drag to orbit · click a building</p>
-        </div>
+        <main className="stage">
+          <Campus buildings={data?.buildings || []} selectedId={data?.selectedId} onSelect={chooseBuilding} />
+        </main>
 
-        <aside className="panel detail-panel">
+        <aside className="rail detail">
           {notice ? <p className="form-error" role="alert">{notice}</p> : null}
-          {!detail ? <p className="quiet">Select a building</p> : (
+          {!detail ? <p className="quiet">Select a building.</p> : (
             <>
-              <div className="detail-head">
+              <div className="place">
                 <div>
-                  <h2 className="place">{detail.name}</h2>
-                  <div className="meta">
-                    <span className={`badge level-${detail.level}`}>{detail.levelText}</span>
-                    <span className="tag">{detail.onGenerator ? "Generator · assumed" : "No generator · assumed"}</span>
-                  </div>
+                  <p className={`level level-${detail.level}`}>{detail.levelText}</p>
+                  <h2>{detail.name}</h2>
+                  <p className="note">{detail.onGenerator ? "On generator, assumed" : "No generator, assumed"}</p>
                 </div>
                 <p className={`score level-${detail.level}`}>{detail.score}</p>
               </div>
               <ul className="reasons">
-                {(detail.reasons.length ? detail.reasons : ["No risk rules fired"]).map((reason) => (
+                {(detail.reasons.length ? detail.reasons : ["No risk rules fired."]).map((reason) => (
                   <li key={reason}>{reason}</li>
                 ))}
               </ul>
-              <p className="dollars">Dollars at risk {detail.dollars}</p>
-              <span className="tag">Simulated values</span>
+              <p className="dollars">{detail.dollars} at risk</p>
               {detail.damaged2019 === "true" ? (
-                <p className="damage-line">
-                  <a href={detail.damageSourceUrl} target="_blank" rel="noreferrer">
-                    Damaged in Feb 2019 · {detail.damageType}
-                  </a>
+                <p className="damage">
+                  <a href={detail.damageSourceUrl} target="_blank" rel="noreferrer">{detail.damageType}</a>
                   <span>{detail.damageSource}</span>
                 </p>
               ) : null}
               {detail.freezerMessage ? <p className="quiet">{detail.freezerMessage}</p> : (
                 <>
-                  <ul className="freezers">
-                    {detail.freezers.map((row) => (
-                      <li key={row.id}>
-                        <button
-                          type="button"
-                          className={freezer === row.id ? "freezer on" : "freezer"}
+                  <table className="freezers">
+                    <thead>
+                      <tr>
+                        <th>Freezer</th>
+                        <th>Lab</th>
+                        <th>Temp</th>
+                        <th>Value</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.freezers.map((row) => (
+                        <tr
+                          key={row.id}
+                          className={freezer === row.id ? "on" : ""}
                           onClick={() => setFreezer(row.id)}
                         >
-                          <strong>{row.id}</strong>
-                          <span>{row.lab}</span>
-                          <span>{row.temp || "—"}</span>
-                          <span>{row.value}</span>
-                          <em className={row.flagged ? "flag" : "calm"}>{row.flagged ? "Flagged" : "OK"}</em>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                          <td>{row.id}</td>
+                          <td>{row.lab}</td>
+                          <td>{row.temp || "—"}</td>
+                          <td>{row.value}</td>
+                          <td className={row.flagged ? "flag" : "calm"}>{row.flagged ? "Flagged" : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   <Chart series={series} />
                 </>
               )}
             </>
           )}
 
-          <h2 className="queue-title">Approval queue</h2>
-          {data && !data.plans.length ? <p className="quiet">No pending plans</p> : null}
+          <h3>Queue</h3>
+          {data && !data.plans.length ? <p className="quiet">Nothing pending.</p> : null}
           {(data?.plans || []).map((plan) => (
             <Plan
               key={plan.id}
@@ -264,28 +250,24 @@ export default function Dashboard({ user, onSignedOut }) {
             />
           ))}
           {data?.decided?.length ? (
-            <>
-              <h2 className="queue-title">Decided</h2>
-              <ul className="decided">
-                {data.decided.map((row) => (
-                  <li key={row.id}>{row.buildingName} · {row.status} · {row.decidedBy}</li>
-                ))}
-              </ul>
-            </>
+            <ul className="decided">
+              {data.decided.map((row) => (
+                <li key={row.id}>{row.buildingName} · {row.status}</li>
+              ))}
+            </ul>
           ) : null}
-          <p className="fine">Freezer readings and values are simulated. Generator status is assumed. Weather never looks past the selected hour.</p>
+          <p className="fine">Readings and values are simulated. Weather stops at the hour on screen.</p>
         </aside>
       </div>
     </div>
   )
 }
 
-function Stat({ label, value, tag }) {
+function Stat({ label, value, wide = false }) {
   return (
-    <div className="stat">
-      <span>{label}</span>
+    <div className={wide ? "stat wide" : "stat"}>
       <strong>{value}</strong>
-      {tag ? <em>{tag}</em> : null}
+      <span>{label}</span>
     </div>
   )
 }
@@ -293,28 +275,24 @@ function Stat({ label, value, tag }) {
 function Plan({ plan, current, canDecide, onOpen, onAct }) {
   const [reason, setReason] = useState("")
   return (
-    <article className={current ? "card current" : "card"}>
+    <article className={current ? "plan on" : "plan"}>
       <header>
-        <button type="button" className="linkish" onClick={onOpen}>
-          {plan.rank}. {plan.buildingName}
-        </button>
+        <button type="button" onClick={onOpen}>{plan.rank} {plan.buildingName}</button>
         <span>{plan.dollars}</span>
       </header>
       <ol>
         {plan.steps.map((step) => (
           <li key={step.text}>
             {step.text}
-            <div className="chips">
-              {step.citations.map((citation) => <span key={citation}>{citation}</span>)}
-            </div>
+            {step.citations.length ? <span className="cite">{step.citations.join(" · ")}</span> : null}
           </li>
         ))}
       </ol>
       {canDecide ? (
         <div className="actions">
-          <button type="button" className="primary" onClick={() => onAct("/api/approve", plan.id)}>Approve</button>
+          <button type="button" className="ink" onClick={() => onAct("/api/approve", plan.id)}>Approve</button>
           <button type="button" className="danger" onClick={() => onAct("/api/reject", plan.id, reason)}>Reject</button>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason" />
+          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason" aria-label="Reason" />
         </div>
       ) : null}
     </article>

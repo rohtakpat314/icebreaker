@@ -11,6 +11,9 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import secrets
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -66,6 +69,32 @@ ALIASES = {
     "viewer": "viewer",
     "viewer@wisc.edu": "viewer",
 }
+
+ACCOUNTS = Path(__file__).resolve().parent / "accounts.json"
+EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_accounts_lock = threading.Lock()
+
+
+def _save_accounts() -> None:
+    rows = [user for user in USERS.values() if user.get("passwordHash")]
+    ACCOUNTS.write_text(json.dumps({"users": rows}, indent=2), encoding="utf-8")
+
+
+def _remember(row: dict) -> None:
+    USERS[row["id"]] = row
+    ALIASES[row["email"]] = row["id"]
+
+
+def load_accounts() -> None:
+    if not ACCOUNTS.is_file():
+        return
+    payload = json.loads(ACCOUNTS.read_text(encoding="utf-8"))
+    for row in payload.get("users", []):
+        if row.get("id") and row["id"] not in USERS:
+            _remember(row)
+
+
+load_accounts()
 
 JUMPS = {
     "deepFreeze": "2019-01-30T09:00",
@@ -336,19 +365,19 @@ def public_user(user: dict) -> dict:
 
 def issue_token(user_id: str) -> str:
     exp = int(time.time()) + MAX_AGE
-    body = f"{user_id}.{exp}"
+    body = f"{user_id}|{exp}"
     sig = hmac.new(SECRET, body.encode(), hashlib.sha256).hexdigest()
-    return f"{body}.{sig}"
+    return f"{body}|{sig}"
 
 
 def read_token(token: str | None) -> str | None:
-    if not token:
+    if not token or token.count("|") < 2:
         return None
-    user_id, sep, rest = token.partition(".")
-    exp, sep2, sig = rest.partition(".")
-    if not sep or not sep2 or user_id not in USERS:
+    body, sig = token.rsplit("|", 1)
+    user_id, exp = body.rsplit("|", 1)
+    if user_id not in USERS:
         return None
-    expected = hmac.new(SECRET, f"{user_id}.{exp}".encode(), hashlib.sha256).hexdigest()
+    expected = hmac.new(SECRET, f"{user_id}|{exp}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, sig):
         return None
     try:
@@ -360,6 +389,11 @@ def read_token(token: str | None) -> str | None:
 
 
 def password_ok(user_id: str, password: str) -> bool:
+    user = USERS[user_id]
+    stored = user.get("passwordHash")
+    if stored:
+        given = hashlib.sha256(f"{user['salt']}:{password}".encode()).hexdigest()
+        return hmac.compare_digest(stored, given)
     expected = hashlib.sha256(PASSWORDS[user_id].encode()).digest()
     given = hashlib.sha256(password.encode()).digest()
     return hmac.compare_digest(expected, given)
@@ -397,7 +431,7 @@ async def read_body(request: Request) -> dict | None:
 
 
 APP = AppState()
-app = FastAPI(title="Freezer Watch")
+app = FastAPI(title="IceBreaker")
 
 
 @app.middleware("http")
@@ -432,6 +466,35 @@ async def login(request: Request):
     if user_id is None or not password_ok(user_id, password):
         return JSONResponse({"error": "unknown user or password"}, status_code=401)
     return signed_in(USERS[user_id])
+
+
+@app.post("/api/register")
+async def register(request: Request):
+    body = await read_body(request)
+    if body is None:
+        return JSONResponse({"error": "bad json"}, status_code=400)
+    email = str(body.get("email") or "").strip().lower()
+    password = str(body.get("password") or "")
+    if not EMAIL.match(email):
+        return JSONResponse({"error": "Enter a valid email"}, status_code=400)
+    if len(password) < 8:
+        return JSONResponse({"error": "Use at least 8 characters"}, status_code=400)
+    with _accounts_lock:
+        if email in ALIASES or email in USERS:
+            return JSONResponse({"error": "An account with that email already exists"}, status_code=409)
+        salt = secrets.token_hex(16)
+        row = {
+            "id": email,
+            "email": email,
+            "name": email,
+            "role": "Viewer",
+            "buildingId": None,
+            "salt": salt,
+            "passwordHash": hashlib.sha256(f"{salt}:{password}".encode()).hexdigest(),
+        }
+        _remember(row)
+        _save_accounts()
+    return signed_in(USERS[email])
 
 
 @app.post("/api/logout")
@@ -509,7 +572,7 @@ def main() -> None:
     port = int(os.environ.get("PORT", "8765"))
     if os.environ.get("SESSION_SECRET") is None:
         print("SESSION_SECRET is unset; using the dev secret", flush=True)
-    print(f"Freezer Watch http://{host}:{port}", flush=True)
+    print(f"IceBreaker http://{host}:{port}", flush=True)
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
