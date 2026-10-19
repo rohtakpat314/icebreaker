@@ -1,0 +1,24 @@
+/**
+ * A proposed protection plan. A person approves or rejects it. Nothing is sent onward.
+ * steps[i] is the step text. citations[i] is the '|' joined ids that step cites.
+ */
+entity type ActionPlan {
+  building: !Building
+  createdAt: !datetime
+  riskScore: !RiskScore
+  steps: [string]
+  citations: [string]
+  status: !string enum('pending', 'approved', 'rejected')
+  decidedBy: string
+  decidedAt: datetime
+  rank: int
+
+  generatePlan: function(riskScoreId: !string): ActionPlan py
+  runSupervisor: function(asOf: !datetime): int py
+
+  @action(group=['ApprovePlan'])
+  approvePlan: function(planId: !string): ActionPlan py
+
+  @action(group=['ApprovePlan'])
+  rejectPlan: function(planId: !string, reason: string): ActionPlan py
+}

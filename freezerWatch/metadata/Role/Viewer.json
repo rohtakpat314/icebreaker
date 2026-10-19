@@ -1,0 +1,13 @@
+{
+  "id": "Viewer",
+  "description": "Sees buildings and risk levels. dollarsAtRisk is returned as a range. No freezer rows.",
+  "permissions": [
+    "allow:Building::fetch",
+    "allow:RiskScore::fetch",
+    "allow:ActionPlan::fetch",
+    "allow:WeatherHour::fetch",
+    "allow:WeatherSeries::fetch",
+    "deny:Freezer::fetch",
+    "deny:FreezerReading::fetch"
+  ]
+}

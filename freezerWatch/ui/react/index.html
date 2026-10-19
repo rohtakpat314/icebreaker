@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Freezer Watch replays the February 2019 UW–Madison freeze, hour by hour." />
+  <title>Freezer Watch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <img class="hero-photo" src="/images.jpg" alt="The Wisconsin State Capitol at night in heavy snow" />
+    <div class="hero-shade"></div>
+    <div class="hero-inner">
+      <div class="brand">
+        <p class="eyebrow">UW–Madison · February 2019</p>
+        <h1>Freezer Watch</h1>
+        <p class="fact">28 buildings. About $4.9M. One weekend, replayed hour by hour.</p>
+      </div>
+      <div class="hour-block">
+        <p class="hour" id="hour">Loading…</p>
+        <p class="air" id="air"></p>
+        <div class="user" id="user"></div>
+      </div>
+    </div>
+    <div class="controls" id="controls"></div>
+  </header>
+
+  <section class="summary" id="summary" aria-live="polite"><p class="loading">Loading…</p></section>
+
+  <main class="board">
+    <section class="panel" id="map-panel">
+      <h2>Campus</h2>
+      <div id="map">Loading…</div>
+    </section>
+    <section class="panel" id="detail-panel">
+      <h2>Building</h2>
+      <div id="detail">Loading…</div>
+    </section>
+    <section class="panel" id="queue-panel">
+      <h2>Approval queue</h2>
+      <div id="queue">Loading…</div>
+    </section>
+  </main>
+
+  <footer class="notes">
+    <p>Freezer readings and values are simulated. Generator status is assumed. Weather never looks past the selected hour. Capitol photograph by Tom Reed.</p>
+  </footer>
+  <script src="/app.js"></script>
+</body>
+</html>

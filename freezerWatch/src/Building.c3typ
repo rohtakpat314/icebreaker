@@ -1,0 +1,21 @@
+/**
+ * One UW-Madison building in the February 2019 replay.
+ */
+entity type Building {
+  name: !string
+  latitude: !double
+  longitude: !double
+  yearBuilt: !int
+  yearBuiltSource: !string
+  /**
+   * Not a public record. The loader copies the assumed flag from buildings.csv.
+   */
+  onGenerator: !boolean
+  /**
+   * "true" when validation_2019.csv names this building, otherwise "unknown".
+   * Unknown is not the same as undamaged.
+   */
+  damaged2019: !string enum('true', 'unknown')
+  damageType: string
+  damageSource: string
+}

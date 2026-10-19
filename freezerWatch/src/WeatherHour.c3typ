@@ -1,0 +1,14 @@
+/**
+ * One local hour of campus weather. Replay rows are observed history.
+ * Forecast rows, if loaded, set origin to "forecast".
+ */
+@db(datastore='kv', partitionKeyField='parent', persistenceOrder='start')
+entity type WeatherHour mixes TimedDataPoint<WeatherSeries> {
+  @ts(treatment='avg')
+  tempF: !double
+
+  @ts(treatment='integral')
+  precipIn: !double
+
+  origin: string enum('observed', 'forecast')
+}

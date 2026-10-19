@@ -1,0 +1,13 @@
+building_id,name,latitude,longitude,year_built,year_built_source,on_generator
+chemistry,Chemistry Building,43.072715,-89.4048877,2000,"UW News, 11 Sep 2000: dedicated and opened 15 Sep 2000 (https://news.wisc.edu/new-chemistry-building-opens-sept-15/)",false
+vilas,Vilas Hall,43.0726588,-89.3997957,1969,UW Facilities building history: built 1969 (https://fpmphysicalplant.wiscweb.wisc.edu/wp-content/uploads/sites/23/2017/01/VilasHall.pdf),false
+grainger,Grainger Hall,43.072683,-89.4015625,1993,Wisconsin School of Business: opened 1993 (https://business.wisc.edu/news/happy-25th-birthday-grainger-hall/),false
+birge,Birge Hall,43.0744005,-89.4038503,1910,Wisconsin Historical Society property HI100093 (https://www.wisconsinhistory.org/record/property/HI100093/430-lincoln-dr),false
+van_vleck,Van Vleck Hall,43.0748474,-89.4048878,1961,UW-Madison Libraries UWDC: built in 1961 (https://search.library.wisc.edu/digital/AFVYGANUU44T6R86),false
+biochemistry,Biochemistry Building,43.0738393,-89.4109129,1912,Wikipedia/NRHP: DeLuca Biochemistry Building built 1912 (https://en.wikipedia.org/wiki/DeLuca_Biochemistry_Building),true
+microbial,Microbial Sciences Building,43.0757848,-89.4118711,2007,"UW-Madison historical timeline, 2007 (https://www.wisc.edu/about/historical-timeline/)",true
+discovery,Discovery Building (WID),43.0728175,-89.4080649,2010,UW News: opened 2 Dec 2010 (https://news.wisc.edu/wisconsin-institutes-for-discovery-facility-opens-on-uw-madison-campus/),true
+engineering_centers,Engineering Centers Building,43.0727269,-89.4134224,2002,Wisconsin Historical Society property HI160493 (https://wisconsinhistory.org/Records/Property/HI160493),true
+hslc,Health Sciences Learning Center,43.0775464,-89.4304566,2004,UW News: dedicated 7 May 2004 (https://news.wisc.edu/health-sciences-learning-center-dedicated/),true
+msc,Medical Sciences Center,43.0747849,-89.4067418,1924,"UW SMPH: Wisconsin General Hospital opened 1924, now Medical Sciences Center (https://www.med.wisc.edu/news/uw-surgery-turns-100/)",true
+bock,Bock Laboratories,43.0748593,-89.4111304,1967,Bock Laboratories history: completed 1967 (https://bocklabs.wisc.edu/history/),false

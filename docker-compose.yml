@@ -1,0 +1,10 @@
+services:
+  freezerwatch:
+    build: .
+    ports:
+      - "8765:8765"
+    environment:
+      PORT: "8765"
+      HOST: "0.0.0.0"
+      SESSION_SECRET: ${SESSION_SECRET:-freezer-watch-dev-secret}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}

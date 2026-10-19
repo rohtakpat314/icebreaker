@@ -1,0 +1,15 @@
+/**
+ * Explainable risk for one building at one hour. Agents only write this record.
+ */
+entity type RiskScore {
+  building: !Building
+  timestamp: !datetime
+  score: !int
+  level: !string enum('green', 'yellow', 'red')
+  dollarsAtRisk: !double
+  reasons: [string]
+  flaggedFreezers: [string]
+
+  computeRisk: function(buildingId: !string, asOf: !datetime): RiskScore py
+  runRiskAgent: function(asOf: !datetime): int py
+}

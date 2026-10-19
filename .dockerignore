@@ -1,0 +1,6 @@
+**/__pycache__
+**/*.pyc
+**/.venv
+.git
+freezerWatch/web/node_modules
+freezerWatch/web/dist

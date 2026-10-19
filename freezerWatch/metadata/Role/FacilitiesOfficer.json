@@ -1,0 +1,7 @@
+{
+  "id": "FacilitiesOfficer",
+  "description": "Sees every building, freezer, and plan. May approve or reject plans.",
+  "permissions": [
+    "allow:*::*"
+  ]
+}

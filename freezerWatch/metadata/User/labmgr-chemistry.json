@@ -1,0 +1,8 @@
+[
+  {
+    "id": "labmgr-chemistry",
+    "name": "Chemistry Lab Manager",
+    "c3groups": ["LabManager"],
+    "buildingId": "chemistry"
+  }
+]

@@ -1,0 +1,8 @@
+/**
+ * Header for the campus weather series.
+ * // NOTE: C3 requires a TimedDataHeader for WeatherHour. This is that header,
+ * not an extra domain object. One row is seeded for the replay.
+ */
+entity type WeatherSeries mixes TimedDataHeader<WeatherHour> {
+  label: !string
+}

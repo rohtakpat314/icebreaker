@@ -1,0 +1,11 @@
+/**
+ * One simulated minute of freezer temperature. No power-on column.
+ */
+@db(datastore='kv', partitionKeyField='parent', persistenceOrder='start')
+entity type FreezerReading mixes TimedDataPoint<Freezer> {
+  @ts(treatment='avg')
+  tempC: !double
+
+  @ts(treatment='previous')
+  doorOpen: boolean
+}

@@ -1,0 +1,10 @@
+{
+  "name": "freezerWatch",
+  "description": "Replay the February 2019 UW-Madison freeze-thaw, score building risk, and approve protection plans.",
+  "author": "Freezer Watch",
+  "version": "1.0.0",
+  "dependencies": {
+    "platform": "8.11",
+    "uiComponentLibraryReact": "8.11"
+  }
+}

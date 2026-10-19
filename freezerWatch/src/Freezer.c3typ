@@ -1,0 +1,15 @@
+/**
+ * Freezer is the time-series header for FreezerReading.
+ * // NOTE: C3 point series use TimedDataHeader plus TimedDataPoint, so the freezer
+ * itself is the header instead of a separate series type.
+ */
+entity type Freezer mixes TimedDataHeader<FreezerReading> {
+  building: !Building
+  labLabel: !string
+  targetTempC: !double
+  /**
+   * ILLUSTRATIVE dollar figure. Not an appraisal.
+   */
+  valueUsd: !double
+  irreplaceability: !int
+}

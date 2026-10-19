@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+freezerWatch/web/node_modules/
+freezerWatch/web/dist/
+.env
+*.log

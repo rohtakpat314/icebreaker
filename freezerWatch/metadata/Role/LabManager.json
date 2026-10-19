@@ -1,0 +1,13 @@
+{
+  "id": "LabManager",
+  "description": "Sees buildings and risk levels. Freezer rows are limited to the user's buildingId. View only.",
+  "permissions": [
+    "allow:Building::fetch",
+    "allow:RiskScore::fetch",
+    "allow:ActionPlan::fetch",
+    "allow:WeatherHour::fetch",
+    "allow:WeatherSeries::fetch",
+    "allow:Freezer::fetch",
+    "allow:FreezerReading::fetch"
+  ]
+}
